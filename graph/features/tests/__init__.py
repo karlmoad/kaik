@@ -1,3 +1,4 @@
+import numpy as np
 
 sparse_tst_vals= [
     "<(10 , -1):{ 1 : [ 1, 2 ,4 ,5]}>",
@@ -43,3 +44,11 @@ dense_tst_actual=[
     [1, 2, -3, 4,5.3,6,7,8, 9],
     [0, 0, 1, 0, 1, 0, 0, 0, 0],
 ]
+
+
+def array_equals(sets):
+    r=[]
+    for i in range(len(sets)):
+        a,b = sets[i]
+        r.append(np.array_equal(a,b))
+    return r

@@ -1,6 +1,6 @@
 import numpy as np
 from graph.features.feature import Feature
-from graph.features.tests import dense_tst_vals, sparse_tst_vals, sparse_tst_actual, dense_tst_actual
+from graph.features.tests import dense_tst_vals, sparse_tst_vals, sparse_tst_actual, dense_tst_actual, array_equals
 
 def init_test_data():
     rez_d = []
@@ -22,12 +22,6 @@ def feature_batch_to_numpy(features):
 def array_to_numpy(l):
     return [np.array(v, dtype=np.float64) for v in l]
 
-def array_equals(sets):
-    r=[]
-    for i in range(len(sets)):
-        a,b = sets[i]
-        r.append(np.array_equal(a,b))
-    return r
     
 def test_feature_from_string():
     rez_d, rez_s, rez_d_a, rez_s_a = init_test_data()
