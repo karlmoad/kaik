@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from abc import ABC, abstractmethod
-from common.utils.pandas import map_dataframe
+from common.utils.pandas_utils import map_dataframe
 
 
 class BaseTransform(ABC):

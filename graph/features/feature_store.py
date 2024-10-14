@@ -3,9 +3,7 @@ import numpy as np
 from numpy import ndarray
 from graph import GraphObjectType
 from threading import Lock
-
 from graph.features import Feature
-
 
 class FeatureStore(object):
     __slots__ = ['_features','_idx', '_free','_lock']
@@ -41,8 +39,44 @@ class FeatureStore(object):
         finally:
             self._lock.release()
             
-    def get_feature(self, id:Union[list[int],int], otype:GraphObjectType) -> np.array:
-        pass #TODO
+    def get_features(self, ids:list[int], otype:GraphObjectType, verify:bool=True) -> np.array:
+        if not isinstance(ids, list):
+            ids = [ids]
+        features =  self._idx[np.isin(self._idx[0], ids)]
+        features = features[np.where(features[:,1] == int(otype))]
+        
+        if verify:
+            # all features must be same size dim
+            if features[0,2] != np.sum(features[:, 2]) / features.shape[0]:
+                raise ValueError("Features dimensions are not equal")
+            
+        buffer = []
+        for f in features:
+            buffer.append([f[0], self._features[f[3]].to_numpy(dtype=object)])
+        
+        
+        return np.array(buffer, dtype=object)
+
+        
+            
+        
+        
+            
+        
+        
+        
+        
+        
+        
+
+        
+
+
+        
+        
+        
+        
+        
     
     
     

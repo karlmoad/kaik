@@ -7,9 +7,9 @@ from abc import ABC, abstractmethod
 from torch.cuda import graph
 from tqdm import tqdm
 from graph import Graph
-from common.utils.randomization import RandomState, is_int_in_range
-from common.utils.iteration import is_iterable_collection
-from common.utils.strings import comma_sep
+from common.utils.randomization_utils import RandomState, is_int_in_range
+from common.utils.iteration_utils import is_iterable_collection
+from common.utils.strings_utils import comma_sep
 from graph import GraphDataset
 from sampling import BaseSampler
 from typing import List, Tuple, Union

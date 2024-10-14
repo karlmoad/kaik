@@ -6,8 +6,8 @@ from collections import abc
 from typing import Union
 from enum import Enum
 from common.exceptions import FormatException
-from common.utils.numeric import *
-
+from common.utils.numeric_utils import *
+from graph.features import *
 
 class Feature(object):
     __slots__ = ('_data', '_size', '_default', '_ftype')
@@ -36,15 +36,12 @@ class Feature(object):
         return self._size
 
     def __getitem__(self, idx):
-        if isinstance(self._data, dict):
-            return self._data[str(idx)]
-        elif isinstance(self._data, list):
-            return self._data[int(idx)]
+        sl = self.__get_as_list()
+        if idx < len(sl):
+            return sl[idx]
         else:
-            IndexError("index out of range or invalid")
-
-        return self._data[idx]
-
+            return None
+        0.
     def __iter__(self):
         return iter(self.__get_as_list())
 
@@ -58,7 +55,7 @@ class Feature(object):
                     arr[i] = parse_numeric(k)
             return arr
 
-    def to_numpy(self, dtype: np.dtype) -> np.array:
+    def to_numpy(self, dtype: np.dtype=np.object_) -> np.array:
         return np.array(self.__get_as_list(), dtype=dtype)
 
     def type(self) -> FeatureType:
