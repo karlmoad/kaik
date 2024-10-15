@@ -30,7 +30,7 @@ class ForceBidirectional(BaseTransform):
     def __call__(self, data):
         _assert_state(data, edges=True)
         rev = data['edges'].copy(deep=True)
-        rev.rename(columns={'source': 'target', 'target': 'source', 'source_id': 'target_id', 'target_id': 'source_id'},
+        rev.rename(columns={'source': 'target', 'target': 'source'},
                    inplace=True)
         new_edges = pd.concat([data['edges'], rev], ignore_index=True, axis=0)
         data['edges'] = new_edges.drop_duplicates(ignore_index=True)
@@ -99,14 +99,3 @@ class InferNodesFromEdges(BaseTransform):
             n.sort()
             data['nodes'] = pd.DataFrame(
                 [{'label': n, 'node_type': 'NODE', 'features': '-', 'class': 'NODE'} for i, n in enumerate(n)])
-
-
-class FeaturesTransform(BaseTransform):
-    def __init__(self):
-        super().__init__('FeaturesTransform', 'Applying features transform')
-
-    def __call__(self, data):
-        _assert_state(data, edges=True, nodes=True)
-        node_types = data['nodes']['node_type'].value_counts().to_frame().reset_index()
-        for i, row in node_types.iterrows():
-            ntrows = data['nodes'][data['nodes']['node_type'] == row['node_type']]

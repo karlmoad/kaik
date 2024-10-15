@@ -1,24 +1,5 @@
-from common.utils.test_utils import load_test_dataframe_from_csv
-from graph.transforms.core import InputMappingTransform
-
-def _init_test_data():
-    data = {
-        "nodes": load_test_dataframe_from_csv('nodes.csv', sep="|"),
-        "edges": load_test_dataframe_from_csv('edges.csv', sep="|")
-    }
-    
-    mapping = {
-        'edges': {'source': 'ORIGIN', 'target': 'TARGET', 'graph_id': 'GRAPH', 'edge_type': 'TYPE', 'class': 'CLASS',
-                  'features': 'FEATURES'},
-        'nodes': {'label': 'LABEL', 'node_type': 'TYPE', 'features': 'FEATURES', "class": "CLASS"},
-    }
-    
-    defaults = {
-        'nodes': {"node_type": "NODE", "features": "-NONE-", "class": "NODE"},
-        'edges': {"edge_type": "EDGE", "graph_id": 0, "features": "-NONE-", "class": "EDGE"},
-    }
-
-    return data, mapping, defaults
+from graph.transforms.tests import _init_test_data
+from graph.transforms.core import InputMappingTransform, ForceBidirectional
 
 
 def test_input_mapping():
@@ -76,7 +57,16 @@ def test_input_mapping_content():
         )
         
     
+def test_force_bidirectional():
+    data, _, _ = _init_test_data()
+    orig_edges = data['edges'].copy(deep=True)
     
-    
+    transform = ForceBidirectional()
+    transform(data)
 
+    et = data['edges']
+    for _, row in orig_edges.iterrows():
+        dsr = et[(et['source'] == row['target'])&(et['target'] == row['source'])]
+        assert dsr.shape[0] >=1
+        
     
