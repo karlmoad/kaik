@@ -1,6 +1,7 @@
 import numpy as np
 from graph.features.feature import Feature
-from graph.features.tests import dense_tst_vals, sparse_tst_vals, sparse_tst_actual, dense_tst_actual, array_equals
+from graph.features.tests import dense_tst_vals, sparse_tst_vals, sparse_tst_actual, dense_tst_actual
+from common.utils.test_utils import array_equals
 
 def init_test_data():
     rez_d = []

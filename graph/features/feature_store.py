@@ -47,7 +47,7 @@ class FeatureStore(object):
         finally:
             self._lock.release()
             
-    def get_features(self, ids:list[int], otype:GraphObjectType, verify:bool=True) -> np.array:
+    def get_features(self, ids:list[int], otype:GraphObjectType, verify:bool=True, dtype:np.dtype=np.float64) -> np.array:
         if not isinstance(ids, list):
             ids = [ids]
         features =  self._idx[np.isin(self._idx[:,0], ids)]
@@ -60,10 +60,9 @@ class FeatureStore(object):
             
         buffer = []
         for f in features:
-            buffer.append([f[0], self._features[f[3]].to_numpy(dtype=object)])
+            buffer.append([f[0], *self._features[f[3]].to_numpy(dtype=object)])
         
-        
-        return np.array(buffer, dtype=object)
+        return np.array(buffer, dtype=dtype)
 
         
             

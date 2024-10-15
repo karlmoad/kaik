@@ -1,54 +1,26 @@
-import numpy as np
+import json
+from common.utils.test_utils import load_test_file
 
-sparse_tst_vals= [
-    "<(10 , -1):{ 1 : [ 1, 2 ,4 ,5]}>",
-    "<(8,0.0) : { 1.5: [ 1, 2,3,4 ]} >",
-    "<(10 , -1):{ 1 : [ 5,6]}>",
-    "<(10 , -1):{ 1 : [ 7,8,9]}>",
-    "<(10 , -1):{ 1 : [ 4,5, 6]}>",
-    "<(8,0.0) : { 1.2: [ 4,5,7]} >",
-]
+sparse_tst_vals=None
 
-sparse_tst_actual=[
-    [-1,1,1,-1,1,1,-1,-1,-1,-1],
-    [0.0,1.5,1.5,1.5,1.5,0.0,0.0,0.0],
-    [-1,-1,-1,-1,-1,1,1,-1,-1,-1],
-    [-1,-1,-1,-1,-1,-1,-1,1,1,1],
-    [-1,-1,-1,-1,1,1,1,-1,-1,-1],
-    [0.0,0.0,0.0,0.0,1.2,1.2,0.0,1.2]
-]
+sparse_tst_actual=None
 
-dense_tst_vals=[
-    "<[1, 2, -3, 4,5.2,6,7,8, 9,10]>",
-    "<[0, 0, 1, 0, 1, 0, 0, 0, 0, 1]>",
-    "<[1, 2, -3, 4,5.1,6,7,8, 9,10]>",
-    "<[1, 2, -3, 4,5.2,6,7,8, 9,10]>",
-    "<[0, 0, 0, 0, 1, 0, 0, 1, 0, 1]>",
-    "<[0, 0, 0, 0, 1, 0, 1, 0, 0, 1]>",
-    "<[0, 0, 1, 0, 1, 0, 0, 0, 0, 0]>",
-    "<[1, 2, -3, 4,5.2,6,7,8, 9,-20]>",
-    "<[1, 2, -3, 4,5.3,6,7,8, 9]>",
-    "<[0, 0, 1, 0, 1, 0, 0, 0, 0]>",
-]
+dense_tst_vals=None
+
+dense_tst_actual=None
+
+def load_test_data():
+    global sparse_tst_vals
+    global sparse_tst_actual
+    global dense_tst_vals
+    global dense_tst_actual
+    
+    data = json.loads(load_test_file('features.json'))
+    sparse_tst_vals=data['sparse']['test']
+    sparse_tst_actual=data['sparse']['actual']
+    dense_tst_vals=data['dense']['test']
+    dense_tst_actual=data['dense']['actual']
+    
 
 
-dense_tst_actual=[
-    [1, 2, -3, 4,5.2,6,7,8, 9,10],
-    [0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
-    [1, 2, -3, 4,5.1,6,7,8, 9,10],
-    [1, 2, -3, 4,5.2,6,7,8, 9,10],
-    [0, 0, 0, 0, 1, 0, 0, 1, 0, 1],
-    [0, 0, 0, 0, 1, 0, 1, 0, 0, 1],
-    [0, 0, 1, 0, 1, 0, 0, 0, 0, 0],
-    [1, 2, -3, 4,5.2,6,7,8, 9,-20],
-    [1, 2, -3, 4,5.3,6,7,8, 9],
-    [0, 0, 1, 0, 1, 0, 0, 0, 0],
-]
-
-
-def array_equals(sets):
-    r=[]
-    for i in range(len(sets)):
-        a,b = sets[i]
-        r.append(np.array_equal(a,b))
-    return r
+load_test_data()
