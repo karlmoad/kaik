@@ -3,9 +3,7 @@ import numpy as np
 import json
 from pathlib import Path
 from common.utils.pandas_utils import row_get_or_default, default_if_none
-from tqdm import tqdm
-from graph import GraphObjectType
-from features.feature_store import FeatureStore
+from graph.features.feature_store import FeatureStore
 
 class Graph(object):
     __slots__ = ('_nodes', '_adj', '_weighted', '_heterogeneous',

@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 def load_test_file(fname):
-    pth = Path(__file__).parent.parent.parent.joinpath('ztest',fname)
+    pth = Path(__file__).parent.parent.parent.joinpath('test/data',fname)
     with open(str(pth), 'r') as f:
         return f.read()
     
@@ -15,5 +15,5 @@ def array_equals(sets):
     return r
 
 def load_test_dataframe_from_csv(fname, **kwargs):
-    pth = Path(__file__).parent.parent.parent.joinpath('ztest', fname)
+    pth = Path(__file__).parent.parent.parent.joinpath('test/data', fname)
     return pd.read_csv(pth, **kwargs)
