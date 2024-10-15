@@ -1,4 +1,4 @@
-O|EDGE_TYPE|T
+ORIGIN|TYPE|TARGET
 T001|interacts_with|T002
 T001|interacts_with|T004
 T001|interacts_with|T005

@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from transforms import BaseTransform
 from common.utils.pandas_utils import map_dataframe
+from graph.transforms import _assert_state
 
 
 class InputMappingTransform(BaseTransform):

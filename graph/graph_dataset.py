@@ -18,8 +18,8 @@ class GraphDataset(Dataset):
         self._mapping = None
         self._force_rebuild = kwargs.get('force_rebuild', False)
         self._field_defaults = {
-            'nodes':{"node_type":"NODE", "features":"-","class":"NODE"},
-            'edges':{"edge_type":"EDGE", "graph_id":0, "features":"-", "class":"EDGE"},
+            'nodes':{"node_type":"NODE", "features":"-NONE-","class":"NODE"},
+            'edges':{"edge_type":"EDGE", "graph_id":0, "features":"-NONE-", "class":"EDGE"},
         }
 
         if 'mapping' in kwargs:

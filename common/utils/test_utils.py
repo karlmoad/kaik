@@ -1,5 +1,6 @@
 from pathlib import Path
 import numpy as np
+import pandas as pd
 
 def load_test_file(fname):
     pth = Path(__file__).parent.parent.parent.joinpath('ztest',fname)
@@ -13,5 +14,6 @@ def array_equals(sets):
         r.append(np.array_equal(a, b))
     return r
 
-
-
+def load_test_dataframe_from_csv(fname, **kwargs):
+    pth = Path(__file__).parent.parent.parent.joinpath('ztest', fname)
+    return pd.read_csv(pth, **kwargs)
