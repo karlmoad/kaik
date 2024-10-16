@@ -4,8 +4,15 @@ from common.utils.test_utils import load_test_file, array_equals
 from graph import GraphObjectType
 from graph.features import Feature, FeatureStore
 from common.utils.test_utils import array_equals
+import pytest
 
 class TestFeatureStore:
+    def test_feature_store(self):
+        wrap = FeatureStoreTestWrapper()
+        wrap.t_feature_store_fill()
+        wrap.t_feature_store_verify()
+
+class FeatureStoreTestWrapper:
     def __init__(self):
         data = json.loads(load_test_file('features.json'))
         self.sparse_tst_vals = data['sparse']['test']
@@ -24,7 +31,7 @@ class TestFeatureStore:
         self.rez_d_a = [np.array(v, dtype=np.float64) for v in self.dense_tst_actual]
         self.rez_s_a = [np.array(v, dtype=np.float64) for v in self.sparse_tst_actual]
         
-    def test_feature_store_fill(self):
+    def t_feature_store_fill(self):
         fs = FeatureStore(len(self.dense_tst_vals), len(self.sparse_tst_vals))
         assert len(fs) == len(self.dense_tst_vals) + len(self.sparse_tst_vals)
         
@@ -52,7 +59,7 @@ class TestFeatureStore:
         assert all(array_equals([(a, b) for a, b in zip(setE, setE_actual)]))
 
 
-    def test_feature_store_verify(self):
+    def t_feature_store_verify(self):
         fs = FeatureStore(2, 2)
         
         # sparse [0,1],  dense [7,8]
