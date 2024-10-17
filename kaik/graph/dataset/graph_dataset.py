@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 from kaik.common.utils.pandas_utils import row_get_or_default, default_if_none
 from tqdm import tqdm
 from kaik.graph import Graph
+from kaik.graph.transforms import EncodingTransform
 
 class GraphDataset(Dataset):
     __slots__ =('_root_dir','_graph','_mapping','_field_defaults','_force_rebuild')
@@ -44,7 +45,13 @@ class GraphDataset(Dataset):
 
         if self._mapping is None or not isinstance(self._mapping, dict):
             raise ValueError('Mapping must be an instance of dict')
-
+        
+        # add encoding steps to end of transforms list
+        transforms.extend([EncodingTransform('class','nodes'),
+                          EncodingTransform('class','edges'),
+                          EncodingTransform('node_type','nodes'),
+                          EncodingTransform('edge_type','edges')])
+        
         with tqdm(total=len(transforms)+3, position=0, desc="Preparing Dataset") as pbar:
 
             pbar.set_description("Loading files")

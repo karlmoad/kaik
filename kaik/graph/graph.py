@@ -6,14 +6,14 @@ from kaik.common.utils.pandas_utils import row_get_or_default, default_if_none
 from kaik.graph import GraphObjectType
 from kaik.graph.features.feature_store import FeatureStore, Feature
 from kaik.common.utils.serialization_utils import serialize, deserialize
+from kaik.common.utils.sequence_utils import IntSequence
 
 class Graph(object):
     __slots__ = ('_nodes', '_adj', '_weighted', '_heterogeneous',
-                 '_undirected', '_type_indexes',
-                 '_meta_paths', '_graphs_idx', '_counts', '_features')
+                 '_undirected', '_meta_paths', '_graphs_idx', '_counts', '_features', '_data')
 
     # mask to define which attr are std vs numpy serialization, True = numpy
-    __mask__ = (True, True, False, False, False, False, True, True, False, False)
+    __mask__ = (True, True, False, False, False, True, True, False, False, False)
 
     def __init__(self):
         self._nodes = None
@@ -21,11 +21,11 @@ class Graph(object):
         self._weighted = False
         self._heterogeneous = False
         self._undirected = False
-        self._type_indexes = {'nodes': {}, 'edges': {}, 'node_classes': {}, 'edge_classes': {}}
         self._meta_paths = None
         self._graphs_idx = None
         self._counts = (0, 0)
         self._features = None
+        self._data = None
 
     def save(self, path: str):
         g_file = f'{path}.g'
@@ -87,7 +87,11 @@ class Graph(object):
             case _:
                 return None
 
-    def build(self, nodes, edges):
+    def build(self, data):
+        self._data = data
+        nodes = self._data['nodes']
+        edges = self._data['edges']
+        
         assert isinstance(nodes, pd.DataFrame), 'Invalid input data type for node data'
         assert isinstance(edges, pd.DataFrame), 'Invalid input data type for edge data'
         self._weighted = False
@@ -98,63 +102,30 @@ class Graph(object):
         self._features = FeatureStore(nodes.shape[0], edges.shape[0])
 
         self._graphs_idx = edges['graph_id'].value_counts().keys().to_numpy(object, True, None)
-        self._type_indexes = {'nodes': {}, 'edges': {}, 'node_classes': {}, 'edge_classes': {}}
 
-        for idx, row in edges['edge_type'].value_counts().to_frame().reset_index().iterrows():
-            self._type_indexes['edges'][row['edge_type']] = (idx, row['count'])
-
-        for idx, row in edges['class'].value_counts().to_frame().reset_index().iterrows():
-            self._type_indexes['edge_classes'][row['class']] = (idx, row['count'])
-
-        for idx, row in nodes['node_type'].value_counts().to_frame().reset_index().iterrows():
-            self._type_indexes['nodes'][row['node_type']] = (idx, row['count'])
-
-        for idx, row in nodes['class'].value_counts().to_frame().reset_index().iterrows():
-            self._type_indexes['node_classes'][row['class']] = (idx, row['count'])
-
-        def __encode_node_attr(row):
-            if 'node_type' in row and not pd.isna(row['node_type']):
-                row['type_encoded'] = self._type_indexes['nodes'][row['node_type']] if row['node_type'] in \
-                                                                                       self._type_indexes[
-                                                                                           'nodes'] else -1
-            else:
-                row['type_encoded'] = -1
-
-            if 'class' in row and not pd.isna(row['class']):
-                row['class_encoded'] = self._type_indexes['node_classes'][row['class']] if row['class'] in \
-                                                                                           self._type_indexes[
-                                                                                               'node_classes'] else -1
-            else:
-                row['class_encoded'] = -1
-
-            return row
-
-        tn = nodes[['label', 'id', 'node_type', 'features', 'class']].drop_duplicates()
-        tn = tn.apply(__encode_node_attr, axis=1)
         # add node features to feature store
-        for i, row in tn.iterrows():
+        for i, row in nodes.iterrows():
             self.__set_feature(int(row['id']), GraphObjectType.NODE, row['features'])
         
         #set final nodes list
-        self._nodes = tn[['id','label','type_encoded','class_encoded']].tonumpy(dtype=np.int64)
+        self._nodes = nodes[['id','label','node_type_encoded','class_encoded']].tonumpy(dtype=np.int64)
         
-    
         #multi dim adj info matrix shape(a,b,c,c), a)num graphs, b)info slice, c) num nodes
         #information slice dim = 4 , 0)weights, 1)types 2)features 3)classes
         self._adj = np.full((self._graphs_idx.shape[0], 4, self._nodes.shape[0], self._nodes.shape[0]), -1.0,
                             dtype=object)
 
         edges.sort_values(['graph_id', 'source_id', 'target_id'], inplace=True)
-        ctr = -1
+        sequencer = IntSequence()
         for g in range(self._graphs_idx.shape[0]):
             graph_edges = edges[edges['graph_id'] == self._graphs_idx[g]]
             for _, edg in graph_edges.iterrows():
                 m, n = int(default_if_none(edg['source_id'], -1)), int(default_if_none(edg['target_id'], -1))
-                wtfc = row_get_or_default(edg, ['weight', 'edge_type','features','class'], -1)
+                wtfc = row_get_or_default(edg, ['weight', 'edge_type_encoded','features','class_encoded'], -1)
                 if m != -1 and n != -1:
                     self._adj[g, 0, m, n] = wtfc[0] + 1 if wtfc[0] > 0 else 1  # default all weights to at least 1, if weight present shift
-                    self._adj[g, 1, m, n] = self._type_indexes['edges'][wtfc[1]][0] if wtfc[1] in self._type_indexes['edges'] else -1  #edge type
-                    self._adj[g, 2, m, n] = self.__set_feature(ctr, GraphObjectType.EDGE, wtfc[2], increment=True) if wtfc[2] != -1 else -1
+                    self._adj[g, 1, m, n] = wtfc[1]  #edge type
+                    self._adj[g, 2, m, n] = self.__set_feature(sequencer(), GraphObjectType.EDGE, wtfc[2]) if wtfc[2] != -1 else -1
                     self._adj[g, 3, m, n] = wtfc[3]  #edge classes
                 else:
                     self._adj[g, 0, m, n] = 0
@@ -186,13 +157,9 @@ class Graph(object):
         self._undirected = all([np.array_equal(self._adj[i, 0, :, :], self._adj[i, 0, :, :].transpose()) for i in
                                 range(self._adj.shape[0])])
         
-    def __set_feature(self, iden:int, otype:GraphObjectType, value:str, increment:bool=False):
+    def __set_feature(self, iden:int, otype:GraphObjectType, value:str):
         self._features.add_feature(iden, otype, Feature.from_string(value))
-        
-        if increment:
-            return iden+1
-        else:
-            return iden
+        return iden
         
     @property
     def adjacency_matrix(self):
