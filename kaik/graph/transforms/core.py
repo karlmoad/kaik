@@ -98,3 +98,32 @@ class InferNodesFromEdges(BaseTransform):
             n.sort()
             data['nodes'] = pd.DataFrame(
                 [{'label': n, 'node_type': 'NODE', 'features': '-', 'class': 'NODE'} for i, n in enumerate(n)])
+            
+            
+class EncodingTransform(BaseTransform):
+    def __init__(self, field:str, dataset:str):
+        super().__init__(f'EncodingTransform', 'Applying encoding transform to field: {field}')
+        
+        if dataset not in ['nodes', 'edges']:
+            raise ValueError(f'dataset type [{dataset}] is not valid')
+        
+        self._field = field
+        self._dataset = dataset
+    
+        
+    def __call__(self, data):
+        assert self._field in data[self._dataset].columns, f"Field [{self._field}] not found in data"
+        idx = {row[self._field]:i  for i, row in data[self._dataset][self._field].value_counts().to_frame().reset_index().iterrows()}
+        
+        def __apply_encoding(r):
+            r[f'{self._field}_encoded'] = idx[r[self._field]]
+            return r
+        
+        data[self._dataset] = data[self._dataset].apply(__apply_encoding, axis=1)
+        data[f'{self._field}_idx'] = idx
+        
+        
+        
+        
+        
+        

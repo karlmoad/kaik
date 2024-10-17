@@ -3,7 +3,8 @@ import numpy as np
 import json
 from pathlib import Path
 from kaik.common.utils.pandas_utils import row_get_or_default, default_if_none
-from kaik.graph.features.feature_store import FeatureStore
+from kaik.graph import GraphObjectType
+from kaik.graph.features.feature_store import FeatureStore, Feature
 from kaik.common.utils.serialization_utils import serialize, deserialize
 
 class Graph(object):
@@ -24,7 +25,7 @@ class Graph(object):
         self._meta_paths = None
         self._graphs_idx = None
         self._counts = (0, 0)
-        self._features = FeatureStore()
+        self._features = None
 
     def save(self, path: str):
         g_file = f'{path}.g'
@@ -94,6 +95,7 @@ class Graph(object):
         self._undirected = False
         self._counts = (nodes.shape[0], edges.shape[0])
         self._meta_paths = None
+        self._features = FeatureStore(nodes.shape[0], edges.shape[0])
 
         self._graphs_idx = edges['graph_id'].value_counts().keys().to_numpy(object, True, None)
         self._type_indexes = {'nodes': {}, 'edges': {}, 'node_classes': {}, 'edge_classes': {}}
@@ -118,7 +120,7 @@ class Graph(object):
             else:
                 row['type_encoded'] = -1
 
-            if 'edge_type' in row and not pd.isna(row['edge_type']):
+            if 'class' in row and not pd.isna(row['class']):
                 row['class_encoded'] = self._type_indexes['node_classes'][row['class']] if row['class'] in \
                                                                                            self._type_indexes[
                                                                                                'node_classes'] else -1
@@ -129,24 +131,30 @@ class Graph(object):
 
         tn = nodes[['label', 'id', 'node_type', 'features', 'class']].drop_duplicates()
         tn = tn.apply(__encode_node_attr, axis=1)
-
+        # add node features to feature store
+        for i, row in tn.iterrows():
+            self.__set_feature(int(row['id']), GraphObjectType.NODE, row['features'])
+        
+        #set final nodes list
+        self._nodes = tn[['id','label','type_encoded','class_encoded']].tonumpy(dtype=np.int64)
+        
+    
         #multi dim adj info matrix shape(a,b,c,c), a)num graphs, b)info slice, c) num nodes
         #information slice dim = 4 , 0)weights, 1)types 2)features 3)classes
         self._adj = np.full((self._graphs_idx.shape[0], 4, self._nodes.shape[0], self._nodes.shape[0]), -1.0,
                             dtype=object)
 
         edges.sort_values(['graph_id', 'source_id', 'target_id'], inplace=True)
+        ctr = -1
         for g in range(self._graphs_idx.shape[0]):
             graph_edges = edges[edges['graph_id'] == self._graphs_idx[g]]
             for _, edg in graph_edges.iterrows():
                 m, n = int(default_if_none(edg['source_id'], -1)), int(default_if_none(edg['target_id'], -1))
-                wtfc = row_get_or_default(edg, ['weight', 'edge_type', 'features', 'class'], -1)
+                wtfc = row_get_or_default(edg, ['weight', 'edge_type','features','class'], -1)
                 if m != -1 and n != -1:
-                    self._adj[g, 0, m, n] = wtfc[0] + 1 if wtfc[
-                                                               0] > 0 else 1  # default all weights to at least 1, if weight present shift
-                    self._adj[g, 1, m, n] = self._type_indexes['edges'][wtfc[1]][0] if wtfc[1] in self._type_indexes[
-                        'edges'] else -1  #edge type
-                    self._adj[g, 2, m, n] = wtfc[2]  #edge features
+                    self._adj[g, 0, m, n] = wtfc[0] + 1 if wtfc[0] > 0 else 1  # default all weights to at least 1, if weight present shift
+                    self._adj[g, 1, m, n] = self._type_indexes['edges'][wtfc[1]][0] if wtfc[1] in self._type_indexes['edges'] else -1  #edge type
+                    self._adj[g, 2, m, n] = self.__set_feature(ctr, GraphObjectType.EDGE, wtfc[2], increment=True) if wtfc[2] != -1 else -1
                     self._adj[g, 3, m, n] = wtfc[3]  #edge classes
                 else:
                     self._adj[g, 0, m, n] = 0
@@ -177,7 +185,15 @@ class Graph(object):
         self._heterogeneous = len(np.where(self._adj[:, 1, :, :] != -1)[0]) > 0
         self._undirected = all([np.array_equal(self._adj[i, 0, :, :], self._adj[i, 0, :, :].transpose()) for i in
                                 range(self._adj.shape[0])])
-
+        
+    def __set_feature(self, iden:int, otype:GraphObjectType, value:str, increment:bool=False):
+        self._features.add_feature(iden, otype, Feature.from_string(value))
+        
+        if increment:
+            return iden+1
+        else:
+            return iden
+        
     @property
     def adjacency_matrix(self):
         return self._adj

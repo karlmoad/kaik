@@ -16,4 +16,5 @@ from .core import (ForceBidirectional,
                    InferNodesFromEdges,
                    PurgeIsolatedNodes,
                    PurgeSelfLoops,
-                   AlignReferences)
+                   AlignReferences,
+                   EncodingTransform)

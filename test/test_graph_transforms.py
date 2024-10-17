@@ -1,4 +1,4 @@
-from kaik.graph.transforms import InputMappingTransform, ForceBidirectional
+from kaik.graph.transforms import InputMappingTransform, ForceBidirectional, EncodingTransform
 from kaik.common.utils.test_utils import load_test_dataframe_from_csv
 import logging
 import pytest
@@ -31,6 +31,9 @@ class TestGraphTransforms:
             data, mapping, defaults = TestGraphTransforms._initialize_data()
             self.t_input_mapping(data, mapping, defaults)
             self.t_force_bidirectional(data, mapping, defaults)
+            self.t_encoding_transform(data,"nodes","node_type")
+            self.t_encoding_transform(data,"edges","edge_type")
+            self.t_encoding_transform(data, "nodes", "class")
         
         
     def t_input_mapping(self, data, mapping, defaults):
@@ -89,3 +92,14 @@ class TestGraphTransforms:
             assert dsr.shape[0] >= 1
             
         log.info("Bidirectional graph transform test [SUCCESS]")
+        
+    def t_encoding_transform(self, data, dataset, field):
+        transform = EncodingTransform(field=field, dataset=dataset)
+        transform(data)
+    
+        assert f"{field}_encoded" in data[dataset].columns
+        assert f"{field}_idx" in data
+        log.info(f"Encoding transform test ({field}) [SUCCESS]")
+        
+        
+        
