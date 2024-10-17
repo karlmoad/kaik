@@ -8,7 +8,7 @@ VALUE = re.compile(r"\{(?P<value>-?[0-9.]*):")
 ARRAY = re.compile(r"(?P<array>\[(-?[0-9.]*,?)*\])")
 WHITE_SPACE = re.compile(r"\s")
 
-from graph.features.feature import Feature
-from graph.features.feature_store import FeatureStore
+from .feature import Feature
+from .feature_store import FeatureStore
 
 __all__=[Feature, FeatureStore]

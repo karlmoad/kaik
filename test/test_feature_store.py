@@ -1,16 +1,17 @@
 import json
 import numpy as np
-from common.utils.test_utils import load_test_file, array_equals
-from graph import GraphObjectType
-from graph.features import Feature, FeatureStore
-from common.utils.test_utils import array_equals
+from kaik.common.utils.test_utils import load_test_file, array_equals
+from kaik.graph import GraphObjectType
+from kaik.graph.features import Feature, FeatureStore
 import pytest
+import logging
 
 class TestFeatureStore:
-    def test_feature_store(self):
-        wrap = FeatureStoreTestWrapper()
-        wrap.t_feature_store_fill()
-        wrap.t_feature_store_verify()
+    def test_feature_store(self, caplog):
+        with caplog.at_level(logging.INFO):
+            wrap = FeatureStoreTestWrapper()
+            wrap.t_feature_store_fill()
+            wrap.t_feature_store_verify()
 
 class FeatureStoreTestWrapper:
     def __init__(self):
@@ -19,6 +20,7 @@ class FeatureStoreTestWrapper:
         self.sparse_tst_actual = data['sparse']['actual']
         self.dense_tst_vals = data['dense']['test']
         self.dense_tst_actual = data['dense']['actual']
+        self.log = logging.getLogger(__name__)
         
         self.rez_d = []
         for val in self.dense_tst_vals:
@@ -58,7 +60,8 @@ class FeatureStoreTestWrapper:
         assert all(array_equals([(a, b) for a, b in zip(setN, setN_actual)]))
         assert all(array_equals([(a, b) for a, b in zip(setE, setE_actual)]))
 
-
+        self.log.info("FeatureStore test data intake [SUCCESS]")
+        
     def t_feature_store_verify(self):
         fs = FeatureStore(2, 2)
         
@@ -73,3 +76,5 @@ class FeatureStoreTestWrapper:
         
         with pytest.raises(ValueError):
             y = fs.get_features([0, 1], GraphObjectType.EDGE, True)
+            
+        self.log.info("FeatureStore test data validation [SUCCESS]")

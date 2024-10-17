@@ -1,3 +1,6 @@
+from kaik.graph import GraphDataset
+
+
 class SemanticNetworkDataset(GraphDataset):
     def __init__(self, root_dir: str,/, **kwargs):
         super().__init__(root_dir, **kwargs)

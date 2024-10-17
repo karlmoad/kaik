@@ -10,3 +10,10 @@ def _assert_state(data, /, nodes=False, edges=False):
     if nodes:
         assert 'nodes'  in data, "node data not found"
         assert isinstance(data['nodes'], pd.DataFrame),"nodes must be transformed to dataset prior to this step"
+        
+from .core import (ForceBidirectional,
+                   InputMappingTransform,
+                   InferNodesFromEdges,
+                   PurgeIsolatedNodes,
+                   PurgeSelfLoops,
+                   AlignReferences)

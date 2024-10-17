@@ -1,9 +1,7 @@
-from typing import Union
 import numpy as np
-from numpy import ndarray
-from graph import GraphObjectType
+from kaik.graph import GraphObjectType
 from threading import Lock
-from graph.features import Feature
+from kaik.graph.features import Feature
 
 class FeatureStore(object):
     __slots__ = ['_features','_idx', '_free','_lock']

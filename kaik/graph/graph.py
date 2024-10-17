@@ -2,8 +2,9 @@ import pandas as pd
 import numpy as np
 import json
 from pathlib import Path
-from common.utils.pandas_utils import row_get_or_default, default_if_none
-from graph.features.feature_store import FeatureStore
+from kaik.common.utils.pandas_utils import row_get_or_default, default_if_none
+from kaik.graph.features.feature_store import FeatureStore
+from kaik.common.utils.serialization_utils import serialize, deserialize
 
 class Graph(object):
     __slots__ = ('_nodes', '_adj', '_weighted', '_heterogeneous',
@@ -34,7 +35,7 @@ class Graph(object):
             metadata[ms] = self.__getattribute__(ms)
 
         if self._features is not None:
-            metadata['features'] = util.serialize(self._features)
+            metadata['features'] = serialize(self._features)
 
         # add current npz fields for deserialization
         metadata['npz'] = Graph._get_serialization_fields('numpy').tolist()
@@ -64,7 +65,7 @@ class Graph(object):
                 self.__setattr__(ms, meta[ms])
 
         if 'features' in meta:
-            self._features = util.deserialize(meta['features'])
+            self._features = deserialize(meta['features'])
 
         # it has to be there let it error if not, will set the attrs according to serialization spec at time of creation
         npz_objects = meta['npz']

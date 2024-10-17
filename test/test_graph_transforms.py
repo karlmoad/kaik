@@ -1,10 +1,11 @@
-from graph.transforms.core import InputMappingTransform, ForceBidirectional
-from common.utils.test_utils import load_test_dataframe_from_csv
-
+from kaik.graph.transforms import InputMappingTransform, ForceBidirectional
+from kaik.common.utils.test_utils import load_test_dataframe_from_csv
+import logging
+import pytest
 # transforms = [InputMappingTransform(self._mapping_spec, self._field_defaults), ForceBidirectional(),PurgeSelfLoops(), PurgeIsolatedNodes()]
-
-
+log = logging.getLogger(__name__)
 class TestGraphTransforms:
+
     @staticmethod
     def _initialize_data():
         data = {
@@ -25,10 +26,11 @@ class TestGraphTransforms:
         
         return data, field_map, defaults
         
-    def test_graph_transforms(self):
-        data, mapping, defaults = TestGraphTransforms._initialize_data()
-        self.t_input_mapping(data, mapping, defaults)
-        self.t_force_bidirectional(data, mapping, defaults)
+    def test_graph_transforms(self, caplog):
+        with caplog.at_level(logging.INFO):
+            data, mapping, defaults = TestGraphTransforms._initialize_data()
+            self.t_input_mapping(data, mapping, defaults)
+            self.t_force_bidirectional(data, mapping, defaults)
         
         
     def t_input_mapping(self, data, mapping, defaults):
@@ -73,6 +75,8 @@ class TestGraphTransforms:
             
             assert all(batch)
         
+        log.info("Input Mapping transform test [SUCCESS]")
+        
     def t_force_bidirectional(self, data, mapping=None, defaults=None):
         orig_edges = data['edges'].copy(deep=True)
         
@@ -83,3 +87,5 @@ class TestGraphTransforms:
         for _, row in orig_edges.iterrows():
             dsr = et[(et['source'] == row['target']) & (et['target'] == row['source'])]
             assert dsr.shape[0] >= 1
+            
+        log.info("Bidirectional graph transform test [SUCCESS]")

@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
-from transforms import BaseTransform
-from common.utils.pandas_utils import map_dataframe
-from graph.transforms import _assert_state
-
+from kaik.transforms import BaseTransform
+from kaik.common.utils.pandas_utils import map_dataframe
+from kaik.graph.transforms import _assert_state
 
 class InputMappingTransform(BaseTransform):
     __slots__ = ('_mapping', '_defaults')

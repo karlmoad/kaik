@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from common.utils.randomization_utils import RandomState
+from kaik.common.utils import RandomState
 from enum import Enum
 
 

@@ -1,14 +1,19 @@
 import json
 import numpy as np
-from common.utils.test_utils import load_test_file, array_equals
-from graph.features import Feature
+from kaik.common.utils.test_utils import load_test_file, array_equals
+from kaik.common.utils.serialization_utils import serialize, deserialize
+from kaik.graph.features import Feature
+import logging
+
 
 class TestFeature:
     
-    def test_feature(self):
-        wrap = FeatureTestWrapper()
-        wrap.t_feature_from_string()
-        wrap.t_feature_dimension()
+    def test_feature(self, caplog):
+        with caplog.at_level(logging.INFO):
+            wrap = FeatureTestWrapper()
+            wrap.t_feature_from_string()
+            wrap.t_feature_dimension()
+            wrap.t_feature_serialization()
 
         
 class FeatureTestWrapper:
@@ -18,6 +23,7 @@ class FeatureTestWrapper:
         self.sparse_tst_actual = data['sparse']['actual']
         self.dense_tst_vals = data['dense']['test']
         self.dense_tst_actual = data['dense']['actual']
+        self.log = logging.getLogger(__name__)
         
         self.rez_d = []
         for val in self.dense_tst_vals:
@@ -54,7 +60,8 @@ class FeatureTestWrapper:
         rez_s_r = FeatureTestWrapper.feature_batch_to_numpy(self.rez_s)
         assert all(array_equals([(a, b) for a, b in zip(rez_s_r, self.rez_s_a)]))
     
-    
+        self.log.info("Feature from string test [SUCCESS]")
+        
     def t_feature_dimension(self):
         
         rez_d_r = FeatureTestWrapper.feature_batch_to_numpy(self.rez_d)
@@ -62,3 +69,25 @@ class FeatureTestWrapper:
         
         assert all([len(a) == len(b) for a, b in zip(rez_d_r, self.rez_d_a)])
         assert all([len(a) == len(b) for a, b in zip(rez_s_r, self.rez_s_a)])
+        
+        self.log.info("Feature dimension test [SUCCESS]")
+        
+        
+    def t_feature_serialization(self):
+        s_rez_d =  serialize(self.rez_d)
+        s_rez_s = serialize(self.rez_s)
+        
+        d_rez_d = FeatureTestWrapper.feature_batch_to_numpy(deserialize(s_rez_d))
+        d_rez_s = FeatureTestWrapper.feature_batch_to_numpy(deserialize(s_rez_s))
+        
+        assert all([len(a) == len(b) for a, b in zip(d_rez_d, self.rez_d_a)])
+        assert all([len(a) == len(b) for a, b in zip(d_rez_s, self.rez_s_a)])
+        assert all(array_equals([(a, b) for a, b in zip(d_rez_d, self.rez_d_a)]))
+        assert all(array_equals([(a, b) for a, b in zip(d_rez_s, self.rez_s_a)]))
+        
+        self.log.info("Feature serialization test [SUCCESS]")
+        
+
+
+        
+        

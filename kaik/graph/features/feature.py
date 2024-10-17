@@ -1,13 +1,9 @@
-import re
 import json
-import pandas as pd
 import numpy as np
-from collections import abc
 from typing import Union
+from kaik.common.utils.numeric_utils import parse_numeric
+from kaik.graph.features import SPARSE_PATTERN, DENSE_PATTERN, ARRAY, SPARSE_HEADER, SPARSE_DEFINITION, WHITE_SPACE,VALUE
 from enum import Enum
-from common.exceptions import FormatException
-from common.utils.numeric_utils import *
-from graph.features import *
 
 class Feature(object):
     __slots__ = ('_data', '_size', '_default', '_ftype')
