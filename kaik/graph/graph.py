@@ -1,19 +1,13 @@
 import pandas as pd
 import numpy as np
-import json
-from pathlib import Path
 from kaik.common.utils.pandas_utils import row_get_or_default, default_if_none
 from kaik.graph import GraphObjectType
 from kaik.graph.features.feature_store import FeatureStore, Feature
-from kaik.common.utils.serialization_utils import serialize, deserialize
 from kaik.common.utils.sequence_utils import IntSequence
 
 class Graph(object):
     __slots__ = ('_nodes', '_adj', '_weighted', '_heterogeneous',
-                 '_undirected', '_meta_paths', '_graphs_idx', '_counts', '_features', '_data')
-
-    # mask to define which attr are std vs numpy serialization, True = numpy
-    __mask__ = (True, True, False, False, False, True, True, False, False, False)
+                 '_undirected', '_meta_paths', '_graphs_idx', '_features', '_data')
 
     def __init__(self):
         self._nodes = None
@@ -23,69 +17,34 @@ class Graph(object):
         self._undirected = False
         self._meta_paths = None
         self._graphs_idx = None
-        self._counts = (0, 0)
         self._features = None
         self._data = None
 
-    def save(self, path: str):
-        g_file = f'{path}.g'
-        npz_file = f'{path}.npz'
-
-        metadata = {}
-        for ms in Graph._get_serialization_fields('std'):
-            metadata[ms] = self.__getattribute__(ms)
-
-        if self._features is not None:
-            metadata['features'] = serialize(self._features)
-
-        # add current npz fields for deserialization
-        metadata['npz'] = Graph._get_serialization_fields('numpy').tolist()
-
-        with open(g_file, 'w') as meta_file:
-            json.dump(metadata, meta_file)
-
-        npz_objects = {}
-        for npo in metadata['npz']:
-            npz_objects[npo] = self.__getattribute__(npo)
-
-        np.savez_compressed(npz_file, **npz_objects)
-
-    def load(self, path: str):
-        g_file = f'{path}.g'
-        npz_file = f'{path}.npz'
-        if not Path(g_file).exists() or not Path(npz_file).exists():
-            raise FileNotFoundError()
-
-        with open(g_file, 'r') as meta_file:
-            meta = json.load(meta_file)
-
-        npz = np.load(npz_file, allow_pickle=True)
-
-        for ms in Graph._get_serialization_fields('std'):
-            if ms in meta:
-                self.__setattr__(ms, meta[ms])
-
-        if 'features' in meta:
-            self._features = deserialize(meta['features'])
-
-        # it has to be there let it error if not, will set the attrs according to serialization spec at time of creation
-        npz_objects = meta['npz']
-        for npz_obj in npz_objects:
-            if npz_obj in npz:
-                self.__setattr__(npz_obj, npz[npz_obj])
-
-    @staticmethod
-    def _get_serialization_fields(type_of_attr):
-        attr = np.array(Graph.__slots__, dtype=object)
-        mask = np.array(Graph.__mask__, dtype=bool)
-
-        match str(type_of_attr):
-            case 'std':
-                return attr[~mask]
-            case 'numpy':
-                return attr[mask]
-            case _:
-                return None
+    def __getstate__(self):
+        state = {
+            'nodes': self._nodes.tolist(),
+            'adj': self._adj.tolist(),
+            'weighted': self._weighted,
+            'heterogeneous': self._heterogeneous,
+            'undirected': self._undirected,
+            'meta_paths': self._meta_paths,
+            'graphs_idx': self._graphs_idx.tolist(),
+            'features': self._features,
+            'data': self._data
+        }
+        return state
+        
+    def __setstate__(self, state):
+        self._nodes = np.array(state['nodes'], dtype=object)
+        self._adj = np.array(state['adj'], dtype=object)
+        self._weighted = bool(state['weighted'])
+        self._heterogeneous = bool(state['heterogeneous'])
+        self._undirected = bool(state['undirected'])
+        self._meta_paths = state['meta_paths']
+        self._graphs_idx = np.array(state['graphs_idx'], dtype=object)
+        self._features = state['features']
+        self._data = state['data']
+        
 
     def build(self, data):
         self._data = data
@@ -97,7 +56,6 @@ class Graph(object):
         self._weighted = False
         self._heterogeneous = False
         self._undirected = False
-        self._counts = (nodes.shape[0], edges.shape[0])
         self._meta_paths = None
         self._features = FeatureStore(nodes.shape[0], edges.shape[0])
 
@@ -108,7 +66,7 @@ class Graph(object):
             self.__set_feature(int(row['id']), GraphObjectType.NODE, row['features'])
         
         #set final nodes list
-        self._nodes = nodes[['id','label','node_type_encoded','class_encoded']].tonumpy(dtype=np.int64)
+        self._nodes = nodes[['id','node_type_encoded','class_encoded']].to_numpy(dtype=np.int64)
         
         #multi dim adj info matrix shape(a,b,c,c), a)num graphs, b)info slice, c) num nodes
         #information slice dim = 4 , 0)weights, 1)types 2)features 3)classes
@@ -123,9 +81,10 @@ class Graph(object):
                 m, n = int(default_if_none(edg['source_id'], -1)), int(default_if_none(edg['target_id'], -1))
                 wtfc = row_get_or_default(edg, ['weight', 'edge_type_encoded','features','class_encoded'], -1)
                 if m != -1 and n != -1:
+                    feature_ref = self.__set_feature(sequencer(), GraphObjectType.EDGE, wtfc[2]) if wtfc[2] != -1 else None
                     self._adj[g, 0, m, n] = wtfc[0] + 1 if wtfc[0] > 0 else 1  # default all weights to at least 1, if weight present shift
                     self._adj[g, 1, m, n] = wtfc[1]  #edge type
-                    self._adj[g, 2, m, n] = self.__set_feature(sequencer(), GraphObjectType.EDGE, wtfc[2]) if wtfc[2] != -1 else -1
+                    self._adj[g, 2, m, n] = feature_ref if feature_ref is not None else -1
                     self._adj[g, 3, m, n] = wtfc[3]  #edge classes
                 else:
                     self._adj[g, 0, m, n] = 0
@@ -134,16 +93,17 @@ class Graph(object):
                     self._adj[g, 3, m, n] = -1
 
         # meta paths identification
-        et = {v[0]: k for k, v in self._type_indexes['edges'].items()}
+        et = {r['edge_type_encoded']: r['edge_type'] for _,r in self.edge_types.iterrows()}
+        nt = {r['node_type_encoded']: r['node_type'] for _,r in self.node_types.iterrows()}
         meta_paths = []
 
         for g in range(self._adj.shape[0]):
             etm = self._adj[g, 1, :, :]
-            for i in range(etm.shape[0]):
-                for j in range(etm.shape[1]):
+            for i in range(nodes.shape[0]):
+                for j in range(nodes.shape[0]):
                     etype = etm[i, j]
                     if etype >= 0:
-                        meta_paths.append({"source": self._nodes[i, 2], "edge": et[etype], "target": self._nodes[j, 2]})
+                        meta_paths.append({"source": nt[self._nodes[i, 1]], "edge": et[etype], "target": nt[self._nodes[j, 1]]})
 
         self._meta_paths = pd.DataFrame(meta_paths).drop_duplicates(ignore_index=True).to_numpy(dtype=object, copy=True)
         self.__assess()
@@ -158,8 +118,11 @@ class Graph(object):
                                 range(self._adj.shape[0])])
         
     def __set_feature(self, iden:int, otype:GraphObjectType, value:str):
-        self._features.add_feature(iden, otype, Feature.from_string(value))
-        return iden
+        if len(value.strip()) > 0 and value != '-NONE-':
+            self._features.add_feature(iden, otype, Feature.from_string(value))
+            return iden
+        else:
+            return None
         
     @property
     def adjacency_matrix(self):
@@ -179,10 +142,27 @@ class Graph(object):
 
     @property
     def node_types(self):
-        return self._type_indexes['nodes']
-
+        return self._data['nodes'][['node_type','node_type_encoded']].value_counts().to_frame().reset_index()
+    
+    @property
     def edge_types(self):
-        return self._type_indexes['edges']
+        return self._data['edges'][['edge_type','edge_type_encoded']].value_counts().to_frame().reset_index()
+    
+    @property
+    def node_classes(self):
+        return self.__get_class_list('nodes')
+
+    @property
+    def edge_classes(self):
+        return self.__get_class_list('edges')
+
+    def __get_class_list(self, t:str):
+        if t in self._data:
+            return self._data[t][['class', 'class_encoded']].value_counts().to_frame().reset_index()
+        
+    @property
+    def features(self):
+        return self._features
 
     @property
     def heterogeneous(self):
@@ -205,26 +185,26 @@ class Graph(object):
             s += "\nDirected graph"
 
         s += f"\nWeighted: {self._weighted}"
-        s += f"\nNode Count:{self._counts[0]}"
-        s += f"\nEdge Count:{self._counts[1]}"
+        s += f"\nNode Count:{self._data['nodes'].shape[0]}"
+        s += f"\nEdge Count:{self._data['edges'].shape[0]}"
 
         s += f"\n{''.ljust(25, '-')}"
 
         s += "\nNode Types:"
-        for k, v in self._type_indexes['nodes'].items():
-            s += f"\n\t{k}: {v[1]}"
+        for _,r in self.node_types.iterrows():
+            s += f"\n\t{r['node_type']}: {r['count']}"
 
         s += "\nNode Classes:"
-        for k, v in self._type_indexes['node_classes'].items():
-            s += f"\n\t{k}: {v[1]}"
+        for _,r in self.node_classes.iterrows():
+            s += f"\n\t{r['class']}: {r['count']}"
 
         s += "\n\nEdge Types:"
-        for k, v in self._type_indexes['edges'].items():
-            s += f"\n\t{k}: {v[1]}"
+        for _,r in self.edge_types.iterrows():
+            s += f"\n\t{r['edge_type']}: {r['count']}"
 
         s += "\nEdge Classes:"
-        for k, v in self._type_indexes['edge_classes'].items():
-            s += f"\n\t{k}: {v[1]}"
+        for _,r in self.edge_classes.iterrows():
+            s += f"\n\t{r['class']}: {r['count']}"
 
         s += "\n\nMeta paths:"
 
@@ -246,7 +226,7 @@ class Graph(object):
         else:
             return self._adj[graph_idx, 0, origin, target] >= 0
 
-    def neighbors(self, node: int, /, graph_idx: int = 0, edge_types=None, node_types=None) -> np.ndarray:
+    def neighbors(self, node: int, /, graph_idx: int = 0, edge_types:list[int]=None, node_types:list[int]=None) -> np.ndarray:
         assert self._adj is not None, "Adjacency matrix can not be equal to None"
         assert self._adj.shape[2] == self._adj.shape[3], "Adjacency matrix must be square matrix"
         assert node is not None and node >= 0, "invalid node index"
@@ -256,11 +236,12 @@ class Graph(object):
         mask = np.isin(self._adj[graph_idx, 0, node, :], self._adj[graph_idx, 0, node, :] > 0)
 
         if node_types is not None:
+            assert isinstance(node_types, list), "node types must be a list of integers, encoded node types"
             mask &= np.isin(self._nodes[:, 2], node_types)
 
         if edge_types is not None:
-            etypes = self._map_edge_types(edge_types)  #convert edge types to integer idx
-            mask &= np.isin(self._adj[graph_idx, 1, node, :], etypes)
+            assert isinstance(edge_types, list), "edge types must be a list of integers, encoded edge types"
+            mask &= np.isin(self._adj[graph_idx, 1, node, :], edge_types)
 
         n_idx = np.argwhere(mask).flatten()
         n_wght = self._adj[graph_idx, 0, node, n_idx]
@@ -271,5 +252,3 @@ class Graph(object):
 
         return fin
 
-    def _map_edge_types(self, edge_types):
-        return [v[0] for k, v in self._type_indexes['edges'].items() if k in edge_types]
