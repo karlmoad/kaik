@@ -6,15 +6,11 @@ from kaik.graph.features.feature_store import FeatureStore, Feature
 from kaik.common.utils.sequence_utils import IntSequence
 
 class Graph(object):
-    __slots__ = ('_nodes', '_adj', '_weighted', '_heterogeneous',
-                 '_undirected', '_meta_paths', '_graphs_idx', '_features', '_data')
+    __slots__ = ('_nodes', '_adj', '_meta_paths', '_graphs_idx', '_features', '_data')
 
     def __init__(self):
         self._nodes = None
         self._adj = None
-        self._weighted = False
-        self._heterogeneous = False
-        self._undirected = False
         self._meta_paths = None
         self._graphs_idx = None
         self._features = None
@@ -24,9 +20,6 @@ class Graph(object):
         state = {
             'nodes': self._nodes.tolist(),
             'adj': self._adj.tolist(),
-            'weighted': self._weighted,
-            'heterogeneous': self._heterogeneous,
-            'undirected': self._undirected,
             'meta_paths': self._meta_paths,
             'graphs_idx': self._graphs_idx.tolist(),
             'features': self._features,
@@ -37,9 +30,6 @@ class Graph(object):
     def __setstate__(self, state):
         self._nodes = np.array(state['nodes'], dtype=object)
         self._adj = np.array(state['adj'], dtype=object)
-        self._weighted = bool(state['weighted'])
-        self._heterogeneous = bool(state['heterogeneous'])
-        self._undirected = bool(state['undirected'])
         self._meta_paths = state['meta_paths']
         self._graphs_idx = np.array(state['graphs_idx'], dtype=object)
         self._features = state['features']
@@ -53,9 +43,7 @@ class Graph(object):
         
         assert isinstance(nodes, pd.DataFrame), 'Invalid input data type for node data'
         assert isinstance(edges, pd.DataFrame), 'Invalid input data type for edge data'
-        self._weighted = False
-        self._heterogeneous = False
-        self._undirected = False
+
         self._meta_paths = None
         self._features = FeatureStore(nodes.shape[0], edges.shape[0])
 
@@ -106,17 +94,11 @@ class Graph(object):
                         meta_paths.append({"source": nt[self._nodes[i, 1]], "edge": et[etype], "target": nt[self._nodes[j, 1]]})
 
         self._meta_paths = pd.DataFrame(meta_paths).drop_duplicates(ignore_index=True).to_numpy(dtype=object, copy=True)
-        self.__assess()
+
 
     def __call__(self):
-        self.__assess()
+        pass
 
-    def __assess(self):
-        self._weighted = len(np.where(self._adj[:, 0, :, :] != 1)[0]) > 0
-        self._heterogeneous = len(np.where(self._adj[:, 1, :, :] != -1)[0]) > 0
-        self._undirected = all([np.array_equal(self._adj[i, 0, :, :], self._adj[i, 0, :, :].transpose()) for i in
-                                range(self._adj.shape[0])])
-        
     def __set_feature(self, iden:int, otype:GraphObjectType, value:str):
         if len(value.strip()) > 0 and value != '-NONE-':
             self._features.add_feature(iden, otype, Feature.from_string(value))
@@ -134,7 +116,12 @@ class Graph(object):
 
     @property
     def weighted(self):
-        return self._weighted
+        return len(np.where(self._adj[:, 0, :, :] != 1)[0]) > 0
+
+    @property
+    def undirected(self):
+        return all([np.array_equal(self._adj[i, 0, :, :], self._adj[i, 0, :, :].transpose()) for i in
+                                range(self._adj.shape[0])])
 
     @property
     def meta_paths(self):
@@ -166,7 +153,7 @@ class Graph(object):
 
     @property
     def heterogeneous(self):
-        return self._heterogeneous
+        return len(np.where(self._adj[:, 1, :, :] != -1)[0]) > 0
 
     def __repr__(self):
         return self.info()
@@ -179,12 +166,12 @@ class Graph(object):
 
         s += "\nGraph count: {}\n".format(self._graphs_idx.shape[0])
 
-        if self._undirected:
+        if self.undirected:
             s += "\nUndirected graph"
         else:
             s += "\nDirected graph"
 
-        s += f"\nWeighted: {self._weighted}"
+        s += f"\nWeighted: {self.weighted}"
         s += f"\nNode Count:{self._data['nodes'].shape[0]}"
         s += f"\nEdge Count:{self._data['edges'].shape[0]}"
 
@@ -209,7 +196,7 @@ class Graph(object):
         s += "\n\nMeta paths:"
 
         l_d = ' -- '
-        if self._undirected:
+        if self.undirected:
             l_d = ' <- '
 
         for i in range(self._meta_paths.shape[0]):
