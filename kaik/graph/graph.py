@@ -97,7 +97,7 @@ class Graph(object):
 
 
     def __call__(self):
-        pass
+        pass  # remove of old code, identify uses if present
 
     def __set_feature(self, iden:int, otype:GraphObjectType, value:str):
         if len(value.strip()) > 0 and value != '-NONE-':
@@ -116,7 +116,12 @@ class Graph(object):
 
     @property
     def weighted(self):
-        return len(np.where(self._adj[:, 0, :, :] != 1)[0]) > 0
+        def __sum_w_adj(i):
+            weights = np.where(self._adj[i, 0, :, :] > -1)
+            return np.where(self._adj[i,0,weights[0],weights[1]] > 1)[0].shape[0] > 0
+
+        ev = [__sum_w_adj(i) for i in range(self._adj.shape[0])]
+        return any(ev)
 
     @property
     def undirected(self):
