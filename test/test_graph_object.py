@@ -72,10 +72,11 @@ class GraphTestWrapper:
         assert graph.heterogeneous
         assert not graph.weighted
         assert not graph.undirected
-        
-        assert len(graph.features) == 9
-    
+        assert len(graph.features) == 18
+
     def t_serialization(self):
+
+
         g_s = serialize(self.graph)
         d_g = deserialize(g_s)
         
